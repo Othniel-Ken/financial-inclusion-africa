@@ -1,0 +1,14 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/code/models
+
+  retrain:
+    build: .
+    command: ["python", "scripts/scheduler.py"]
+    volumes:
+      - ./models:/code/models
+      - ./data:/code/data

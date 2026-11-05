@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inclusion financière en Afrique</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:560px;margin:30px auto;padding:0 16px;color:#222}
+h1{font-size:22px;color:#1F3A5F}
+label{display:block;margin-top:12px;font-weight:bold;font-size:14px}
+select,input{width:100%;padding:8px;margin-top:4px;box-sizing:border-box;font-size:15px}
+button{margin-top:20px;width:100%;padding:12px;background:#1F3A5F;color:#fff;border:0;font-size:16px;border-radius:6px;cursor:pointer}
+#result{margin-top:20px;padding:14px;border-radius:6px;background:#eef3f9;display:none}
+.note{margin-top:14px;font-size:12px;color:#666}
+</style>
+</head>
+<body>
+<h1>Cette personne a-t-elle un compte bancaire ?</h1>
+<form id="form"></form>
+<button id="go">Prédire</button>
+<div id="result"></div>
+<p class="note">Le score est une estimation du modèle, pas une probabilité exacte :
+le modèle a été pondéré pour mieux repérer les personnes qui ont un compte.</p>
+
+<script>
+const fields = [
+  ["country", "Pays", ["Kenya", "Rwanda", "Tanzania", "Uganda"]],
+  ["location_type", "Milieu de vie", ["Rural", "Urban"]],
+  ["cellphone_access", "Accès à un téléphone", ["Yes", "No"]],
+  ["gender_of_respondent", "Sexe", ["Male", "Female"]],
+  ["relationship_with_head", "Lien avec le chef de ménage",
+    ["Head of Household", "Spouse", "Child", "Parent", "Other relative", "Other non-relatives"]],
+  ["marital_status", "Situation matrimoniale",
+    ["Married/Living together", "Single/Never Married", "Widowed", "Divorced/Separated", "Unknown"]],
+  ["education_level", "Niveau d'éducation",
+    ["No formal education", "Primary education", "Secondary education",
+     "Vocational/Specialised training", "Tertiary education", "Unknown"]],
+  ["job_type", "Type d'emploi",
+    ["Self employed", "Government Dependent", "Formally employed Private", "Informally employed",
+     "Formally employed Government", "Farming and Fishing", "Remittance Dependent",
+     "Other Income", "No Income", "Unknown"]]
+];
+
+const form = document.getElementById("form");
+
+fields.forEach(([name, label, options]) => {
+  form.innerHTML += `<label>${label}
+    <select name="${name}">${options.map(o => `<option>${o}</option>`).join("")}</select></label>`;
+});
+form.innerHTML += `<label>Taille du ménage
+  <input type="number" name="household_size" value="4" min="1" max="30"></label>
+  <label>Âge
+  <input type="number" name="age_of_respondent" value="35" min="16" max="120"></label>`;
+
+document.getElementById("go").addEventListener("click", async () => {
+  const data = Object.fromEntries(new FormData(form).entries());
+  data.household_size = Number(data.household_size);
+  data.age_of_respondent = Number(data.age_of_respondent);
+
+  const box = document.getElementById("result");
+  box.style.display = "block";
+  box.textContent = "Calcul en cours...";
+
+  try {
+    const res = await fetch("/predict", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error("Erreur " + res.status);
+    const out = await res.json();
+    const pct = (out.probability * 100).toFixed(1);
+    box.textContent = (out.has_bank_account
+      ? "Probablement un compte bancaire"
+      : "Probablement pas de compte bancaire") + " (score du modèle : " + pct + " %)";
+  } catch (e) {
+    box.textContent = "Impossible d'obtenir la prédiction : " + e.message;
+  }
+});
+</script>
+</body>
+</html>
